@@ -1,0 +1,11 @@
+
+# ML artifacts
+*.pt
+*.bin
+*.safetensors
+models/
+data/raw/
+__pycache__/
+.env
+*.log
+.ipynb_checkpoints/
