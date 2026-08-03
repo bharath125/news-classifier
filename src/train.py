@@ -1,4 +1,3 @@
-train_code = '''
 import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
@@ -6,7 +5,6 @@ from transformers import BertTokenizer, BertForSequenceClassification
 from transformers import get_linear_schedule_with_warmup
 from torch.optim import AdamW
 from sklearn.datasets import fetch_20newsgroups
-from collections import Counter
 import time
 import os
 from config import Config
@@ -42,7 +40,6 @@ def load_balanced_data(examples_per_class=200):
     test_data  = fetch_20newsgroups(subset="test",
                                     remove=("headers","footers","quotes"))
 
-    # balance training data
     balanced_texts  = []
     balanced_labels = []
     for class_idx in range(20):
@@ -60,33 +57,25 @@ def load_balanced_data(examples_per_class=200):
             train_data.target_names)
 
 def train():
-    # load data
-    train_texts, train_labels, test_texts, test_labels, categories = \\
+    train_texts, train_labels, test_texts, test_labels, categories = \
         load_balanced_data(Config.EXAMPLES_PER_CLASS)
 
-    # tokenizer
-    tokenizer = BertTokenizer.from_pretrained(Config.MODEL_NAME)
-
-    # datasets
-    train_dataset = NewsDataset(train_texts,  train_labels,
+    tokenizer     = BertTokenizer.from_pretrained(Config.MODEL_NAME)
+    train_dataset = NewsDataset(train_texts, train_labels,
                                 tokenizer, Config.MAX_LEN)
-    test_dataset  = NewsDataset(test_texts,   test_labels,
+    test_dataset  = NewsDataset(test_texts,  test_labels,
                                 tokenizer, Config.MAX_LEN)
+    train_loader  = DataLoader(train_dataset,
+                               batch_size=Config.BATCH_SIZE, shuffle=True)
+    test_loader   = DataLoader(test_dataset,
+                               batch_size=Config.BATCH_SIZE, shuffle=False)
 
-    train_loader = DataLoader(train_dataset,
-                              batch_size=Config.BATCH_SIZE, shuffle=True)
-    test_loader  = DataLoader(test_dataset,
-                              batch_size=Config.BATCH_SIZE, shuffle=False)
-
-    # model
-    model = BertForSequenceClassification.from_pretrained(
+    model     = BertForSequenceClassification.from_pretrained(
         Config.MODEL_NAME, num_labels=Config.NUM_CLASSES
     ).to(Config.DEVICE)
-
-    # optimizer and scheduler
-    optimizer    = AdamW(model.parameters(),
-                         lr=Config.LEARNING_RATE,
-                         weight_decay=Config.WEIGHT_DECAY)
+    optimizer = AdamW(model.parameters(),
+                      lr=Config.LEARNING_RATE,
+                      weight_decay=Config.WEIGHT_DECAY)
     total_steps  = len(train_loader) * Config.EPOCHS
     warmup_steps = int(total_steps * Config.WARMUP_RATIO)
     scheduler    = get_linear_schedule_with_warmup(
@@ -96,14 +85,12 @@ def train():
     )
 
     best_test_acc = 0
-    best_epoch    = 0
 
     for epoch in range(Config.EPOCHS):
         start = time.time()
-
-        # training
         model.train()
         train_correct = train_total = 0
+
         for batch in train_loader:
             input_ids      = batch["input_ids"].to(Config.DEVICE)
             attention_mask = batch["attention_mask"].to(Config.DEVICE)
@@ -122,7 +109,6 @@ def train():
             train_correct += (predicted == labels).sum().item()
             train_total   += labels.size(0)
 
-        # evaluation
         model.eval()
         test_correct = test_total = 0
         with torch.no_grad():
@@ -139,28 +125,19 @@ def train():
         train_acc = train_correct/train_total * 100
         test_acc  = test_correct/test_total  * 100
         elapsed   = time.time() - start
-
         print(f"Epoch {epoch+1}/{Config.EPOCHS} | "
               f"Train: {train_acc:.1f}% | "
               f"Test: {test_acc:.1f}% | "
               f"Time: {elapsed:.0f}s")
 
-        # save best model
         if test_acc > best_test_acc:
             best_test_acc = test_acc
-            best_epoch    = epoch + 1
             os.makedirs(Config.MODEL_SAVE_PATH, exist_ok=True)
             model.save_pretrained(Config.MODEL_SAVE_PATH)
             tokenizer.save_pretrained(Config.MODEL_SAVE_PATH)
-            print(f"  → Best model saved (epoch {best_epoch})")
+            print(f"  → Best model saved")
 
-    print(f"\\nTraining complete.")
-    print(f"Best test accuracy: {best_test_acc:.1f}% at epoch {best_epoch}")
+    print(f"\nBest accuracy: {best_test_acc:.1f}%")
 
 if __name__ == "__main__":
     train()
-'''
-
-with open('news_classifier_project/src/train.py', 'w') as f:
-    f.write(train_code)
-print("train.py written")
