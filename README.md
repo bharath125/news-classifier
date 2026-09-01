@@ -1,4 +1,4 @@
-# News Article Cla
+# News Article Classifier
 
 Classifies news articles into 20 categories using fine-tuned BERT.
 
