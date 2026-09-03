@@ -7,7 +7,7 @@ Classifies news articles into 20 categories using fine-tuned BERT.
 - 64.4% accuracy on test set
 - Trained on 4000 balanced examples (200 per class)
 
-## 
+## Model
 Hosted on HuggingFace Hub:
 https://huggingface.co/YOUR_HF_USERNAME/news-classifier
 
